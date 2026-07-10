@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>請求書作成ツール</title>
+<style>
+  :root{
+    --navy:#1f3a52;
+    --navy-dark:#16293a;
+    --gold:#b8863f;
+    --bg:#f2f4f6;
+    --card:#ffffff;
+    --border:#dde2e7;
+    --text:#233140;
+    --muted:#6b7680;
+    --danger:#c0392b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","YuGothic","Noto Sans JP","Meiryo",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    -webkit-text-size-adjust:100%;
+  }
+  h1,h2,h3{margin:0;}
+  .hidden{display:none !important;}
+
+  /* ---------- Form screen ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--navy); color:#fff; padding:14px 16px;
+  }
+  .topbar h1{font-size:17px; letter-spacing:.02em;}
+  .icon-btn{
+    background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.35);
+    border-radius:8px; padding:8px 12px; font-size:14px; cursor:pointer;
+  }
+  .form-main{max-width:720px; margin:0 auto; padding:16px 12px 100px;}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:16px; margin-bottom:14px; box-shadow:0 1px 2px rgba(20,30,40,.04);
+  }
+  .card h2{font-size:14px; color:var(--navy); margin-bottom:12px; border-left:4px solid var(--gold); padding-left:8px;}
+  .field-row{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+  .field-row label{flex:1 1 140px; display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:4px;}
+  input[type="text"], input[type="number"], input[type="date"], select, textarea{
+    font-size:15px; padding:9px 8px; border:1px solid var(--border); border-radius:8px;
+    font-family:inherit; color:var(--text); background:#fff; width:100%;
+  }
+  textarea{resize:vertical;}
+  .table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  #itemsTable{border-collapse:collapse; width:100%; min-width:640px; font-size:13px;}
+  #itemsTable th{
+    background:#eef2f5; color:var(--navy); font-size:12px; padding:8px 6px; text-align:left; white-space:nowrap;
+  }
+  #itemsTable td{padding:5px 4px; border-bottom:1px solid var(--border); vertical-align:top;}
+  #itemsTable input, #itemsTable select{padding:7px 6px; font-size:13px;}
+  .cell-name{min-width:120px;}
+  .cell-qty{width:64px;}
+  .cell-unit{width:56px;}
+  .cell-price{width:90px; margin-top:4px;}
+  .cell-preset{width:110px;}
+  .cell-note{min-width:100px;}
+  .cell-amount{white-space:nowrap; font-variant-numeric:tabular-nums; padding-top:12px !important; font-weight:600;}
+  .btn-del{
+    background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer; padding:4px 6px;
+  }
+  #btnAddRow{
+    margin-top:10px; background:#fff; border:1px dashed #9fb0bd; color:var(--navy);
+    padding:9px 14px; border-radius:8px; font-size:13px; cursor:pointer; width:100%;
+  }
+  .totals{margin-top:14px; border-top:1px solid var(--border); padding-top:10px;}
+  .totals-row{display:flex; justify-content:space-between; padding:5px 4px; font-size:14px;}
+  .totals-row span:last-child{font-variant-numeric:tabular-nums; font-weight:600;}
+  .total-final{font-size:16px; color:var(--navy); border-top:1px solid var(--border); margin-top:4px; padding-top:8px;}
+  .primary-btn{
+    display:block; width:100%; background:var(--navy); color:#fff; border:none; border-radius:10px;
+    padding:14px; font-size:15px; font-weight:700; cursor:pointer; letter-spacing:.02em;
+  }
+  .primary-btn:active{background:var(--navy-dark);}
+  .warn{color:var(--danger); font-size:12.5px; margin-top:6px; min-height:16px;}
+  .hint{font-size:11.5px; color:var(--muted); margin-top:4px;}
+
+  /* ---------- Modal (settings) ---------- */
+  .modal{
+    position:fixed; inset:0; background:rgba(20,30,40,.5); z-index:50;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .modal-box{
+    background:#fff; width:100%; max-width:640px; max-height:92vh; overflow-y:auto;
+    border-radius:16px 16px 0 0; padding:18px 16px 24px;
+  }
+  @media (min-width:700px){
+    .modal{align-items:center;}
+    .modal-box{border-radius:16px; max-height:88vh;}
+  }
+  .modal-box h2{font-size:16px; color:var(--navy); margin-bottom:4px;}
+  .modal-box h3{font-size:13px; color:var(--navy); margin:16px 0 8px; border-left:4px solid var(--gold); padding-left:8px;}
+  .modal-sub{font-size:12px; color:var(--muted); margin-bottom:10px;}
+  .preset-row{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
+  .preset-row input[type="text"]{flex:1.4;}
+  .preset-row input[type="number"]{flex:1;}
+  .modal-actions{
+    display:flex; gap:8px; margin-top:18px; position:sticky; bottom:-24px; background:#fff; padding-top:10px;
+  }
+  .btn-secondary{
+    flex:1; background:#fff; border:1px solid var(--border); color:var(--text); padding:12px; border-radius:8px; font-size:14px; cursor:pointer;
+  }
+  .btn-primary-modal{
+    flex:1; background:var(--navy); color:#fff; border:none; padding:12px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer;
+  }
+  .io-row{display:flex; gap:8px; margin-top:10px;}
+  .io-row button{flex:1; font-size:12.5px; padding:9px; border-radius:8px; border:1px solid var(--border); background:#f7f9fa; cursor:pointer;}
+
+  /* ---------- Preview / export screen ---------- */
+  .preview-toolbar{
+    position:sticky; top:0; z-index:20; display:flex; gap:10px; justify-content:center;
+    background:var(--navy); padding:10px 12px;
+  }
+  .preview-toolbar button{
+    padding:10px 16px; border-radius:8px; font-size:14px; border:none; cursor:pointer;
+  }
+  #btnBack{background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.4) !important;}
+  #btnExportPdf{background:var(--gold); color:#fff; font-weight:700;}
+  .preview-scroll{padding:14px 10px 50px; background:#d9dfe4; min-height:calc(100vh - 48px);}
+  .preview-hint{max-width:620px; margin:0 auto 10px; font-size:12px; color:#3a4956; background:#fff8e8; border:1px solid #ecdcb0; border-radius:8px; padding:8px 10px;}
+  .invoice-img-wrap{max-width:620px; margin:0 auto 14px;}
+  .invoice-img-wrap .page-label{font-size:11.5px; color:#3a4956; text-align:center; margin-bottom:4px;}
+  .invoice-img-wrap img{width:100%; height:auto; display:block; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.18); border-radius:2px;}
+  .pdf-status{max-width:620px; margin:8px auto 0; font-size:12.5px; color:#3a4956; text-align:center; min-height:16px;}
+</style>
+</head>
+<body>
+
+<!-- ============= FORM SCREEN ============= -->
+<div id="formView" class="screen">
+  <div class="topbar">
+    <h1>請求書作成ツール</h1>
+    <button class="icon-btn" id="btnSettings">⚙ 設定</button>
+  </div>
+
+  <div class="form-main">
+    <section class="card">
+      <h2>請求先・日付</h2>
+      <div class="field-row">
+        <label>請求先名
+          <input type="text" id="clientName" placeholder="例）株式会社SHINWA">
+        </label>
+        <label style="max-width:110px;">敬称
+          <select id="clientHonorific">
+            <option value="御中">御中</option>
+            <option value="様">様</option>
+            <option value="">（なし）</option>
+          </select>
+        </label>
+      </div>
+      <div class="field-row">
+        <label>請求日
+          <input type="date" id="invoiceDate">
+        </label>
+        <label>請求書番号（任意）
+          <input type="text" id="invoiceNo" placeholder="空欄可">
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>明細</h2>
+      <div class="table-wrap">
+        <table id="itemsTable">
+          <thead>
+            <tr>
+              <th>名称</th><th>数量</th><th>単位</th><th>単価</th><th>金額</th><th>備考</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+      <button type="button" id="btnAddRow">＋ 行を追加</button>
+      <div class="hint">単価欄のプルダウンから設定済みの単価（通常単価・休日手当など）を選べます。「設定」からプリセットの追加・変更ができます。</div>
+
+      <div class="totals">
+        <div class="totals-row"><span>小計</span><span id="sumSubtotal">0円</span></div>
+        <div class="totals-row"><span>消費税（<span id="taxRateLabel">10</span>%）</span><span id="sumTax">0円</span></div>
+        <div class="totals-row total-final"><span>合計</span><span id="sumTotal">0円</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>備考（フッター）</h2>
+      <textarea id="footerNote" rows="2"></textarea>
+    </section>
+
+    <div class="warn" id="formWarn"></div>
+    <button type="button" class="primary-btn" id="btnPreview">プレビュー・PDF作成へ進む →</button>
+  </div>
+</div>
+
+<!-- ============= PRINT / PREVIEW SCREEN ============= -->
+<div id="printView" class="screen hidden">
+  <div class="preview-toolbar">
+    <button id="btnBack">← 編集に戻る</button>
+    <button id="btnExportPdf">📄 PDFを保存 / 共有</button>
+  </div>
+  <div class="preview-scroll">
+    <div class="preview-hint">この画像がそのままPDFになります（実際の印刷結果と同じ内容です）。指でピンチすると拡大して確認できます。</div>
+    <div id="invoicePreviewPages"></div>
+    <div class="pdf-status" id="pdfStatus"></div>
+  </div>
+</div>
+
+<!-- ============= SETTINGS MODAL ============= -->
+<div id="settingsModal" class="modal hidden">
+  <div class="modal-box">
+    <h2>設定（カスタマイズ）</h2>
+    <div class="modal-sub">会社情報・振込先など固定項目はここでまとめて変更できます。変更内容はこの端末に保存されます。</div>
+
+    <h3>会社情報（請求書ヘッダーに表示）</h3>
+    <div class="field-row">
+      <label>会社名・屋号<input type="text" id="setCoName"></label>
+      <label>代表者名<input type="text" id="setCoOwner"></label>
+    </div>
+    <div class="field-row">
+      <label>郵便番号<input type="text" id="setCoZip"></label>
+      <label style="flex:2 1 220px;">住所<input type="text" id="setCoAddress"></label>
+    </div>
+    <div class="field-row">
+      <label>電話<input type="text" id="setCoTel"></label>
+      <label>携帯<input type="text" id="setCoMobile"></label>
+      <label>FAX<input type="text" id="setCoFax"></label>
+    </div>
+
+    <h3>振込先情報（請求書フッターに表示）</h3>
+    <div class="field-row">
+      <label>金融機関名<input type="text" id="setBankName"></label>
+      <label>支店名<input type="text" id="setBankBranch"></label>
+    </div>
+    <div class="field-row">
+      <label>店番<input type="text" id="setBankBranchNo"></label>
+      <label style="max-width:120px;">口座種別
+        <select id="setBankType"><option>普通</option><option>当座</option></select>
+      </label>
+      <label>口座番号<input type="text" id="setBankNo"></label>
+    </div>
+    <div class="field-row">
+      <label>口座名義<input type="text" id="setBankHolder"></label>
+    </div>
+
+    <h3>単価プリセット</h3>
+    <div class="modal-sub">明細行の「単価」プルダウンに表示される候補です。</div>
+    <div id="presetList"></div>
+    <button type="button" class="btn-secondary" id="btnAddPreset" style="margin-top:4px;">＋ プリセットを追加</button>
+
+    <h3>消費税率・デフォルト備考</h3>
+    <div class="field-row">
+      <label style="max-width:120px;">消費税率(%)<input type="number" id="setTaxRate" min="0" max="100" step="0.1"></label>
+      <label style="flex:2 1 220px;">請求書フッターのデフォルト備考文<input type="text" id="setDefaultNote"></label>
+    </div>
+
+    <h3>請求書の文字サイズ</h3>
+    <div class="modal-sub">請求書PDFの文字の大きさです。大きくすると1ページに入る明細の行数が減り、行が多い場合は自動で2ページ目に折り返されます（レイアウトは崩れません）。</div>
+    <div class="field-row">
+      <label style="max-width:160px;">文字サイズ
+        <select id="setFontScale">
+          <option value="1">100%（標準）</option>
+          <option value="1.1">110%</option>
+          <option value="1.2">120%（大きめ）</option>
+          <option value="1.3">130%</option>
+          <option value="1.4">140%（特大）</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="io-row">
+      <button type="button" id="btnExportSettings">設定をJSONで書き出す</button>
+      <button type="button" id="btnImportSettingsTrigger">JSONから設定を読み込む</button>
+      <input type="file" id="importSettingsFile" accept="application/json" class="hidden">
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="btnSettingsCancel">キャンセル</button>
+      <button type="button" class="btn-primary-modal" id="btnSettingsSave">保存する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "invoiceApp.settings.v1";
+  var DRAFT_KEY = "invoiceApp.draft.v1";
+
+  var DEFAULT_SETTINGS = {
+    company:{
+      name:"河村塗装",
+      owner:"河村尚",
+      zip:"437-0626",
+      address:"静岡県浜松市天竜区春野町領家901-2",
+      tel:"053-985-0207",
+      mobile:"090-1820-5112",
+      fax:"053-985-0207"
+    },
+    bank:{
+      bankName:"浜松磐田信用金庫",
+      branch:"春野支店",
+      branchNo:"018",
+      accountType:"普通",
+      accountNo:"5023531",
+      holder:"河村塗装　河村尚"
+    },
+    presets:[
+      {label:"通常単価", price:18000},
+      {label:"休日手当", price:5000}
+    ],
+    taxRate:5,
+    defaultNote:"恐れ入りますが、振込手数料は貴社にてご負担願います。",
+    fontScale:1.2
+  };
+
+  function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+  function loadSettings(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return deepClone(DEFAULT_SETTINGS);
+      var parsed = JSON.parse(raw);
+      // merge with defaults so new fields introduced later don't break old saved data
+      var merged = deepClone(DEFAULT_SETTINGS);
+      merged.company = Object.assign(merged.company, parsed.company||{});
+      merged.bank = Object.assign(merged.bank, parsed.bank||{});
+      merged.presets = Array.isArray(parsed.presets) && parsed.presets.length ? parsed.presets : merged.presets;
+      merged.taxRate = (typeof parsed.taxRate === "number") ? parsed.taxRate : merged.taxRate;
+      merged.defaultNote = (typeof parsed.defaultNote === "string") ? parsed.defaultNote : merged.defaultNote;
+      merged.fontScale = (typeof parsed.fontScale === "number") ? parsed.fontScale : merged.fontScale;
+      return merged;
+    }catch(e){
+      return deepClone(DEFAULT_SETTINGS);
+    }
+  }
+
+  function saveSettings(s){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  }
+
+  var settings = loadSettings();
+
+  // ---------------- state ----------------
+  var items = [];
+  var rowSeq = 0;
+
+  function pad2(n){ return (n<10?"0":"")+n; }
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+  }
+  function isoToJP(iso){
+    if(!iso) return "";
+    var p = iso.split("-");
+    return p[0]+"年"+p[1]+"月"+p[2]+"日";
+  }
+  function yen(n){
+    n = Math.round(Number(n)||0);
+    return n.toLocaleString("ja-JP")+"円";
+  }
+
+  function newRow(prefill){
+    rowSeq++;
+    var firstPreset = settings.presets[0];
+    var base = {
+      id: rowSeq,
+      name: "",
+      qty: "",
+      unit: "人",
+      price: firstPreset ? firstPreset.price : "",
+      note: ""
+    };
+    if(prefill) Object.assign(base, prefill);
+    return base;
+  }
+
+  function defaultFirstRow(){
+    var d = new Date();
+    return newRow({ name: (d.getMonth()+1)+"月分" });
+  }
+
+  // ---------------- DOM refs ----------------
+  var el = {};
+  [
+    "formView","printView","invoicePreviewPages","pdfStatus",
+    "clientName","clientHonorific","invoiceDate","invoiceNo",
+    "itemsBody","btnAddRow","sumSubtotal","sumTax","sumTotal","taxRateLabel",
+    "footerNote","formWarn","btnPreview","btnBack","btnExportPdf",
+    "btnSettings","settingsModal","btnSettingsCancel","btnSettingsSave",
+    "setCoName","setCoOwner","setCoZip","setCoAddress","setCoTel","setCoMobile","setCoFax",
+    "setBankName","setBankBranch","setBankBranchNo","setBankType","setBankNo","setBankHolder",
+    "presetList","btnAddPreset","setTaxRate","setDefaultNote","setFontScale",
+    "btnExportSettings","btnImportSettingsTrigger","importSettingsFile"
+  ].forEach(function(id){ el[id] = document.getElementById(id); });
+
+  // ---------------- items table rendering ----------------
+  function renderRows(){
+    var presetOptions = '<option value="">単価選択</option>' +
+      settings.presets.map(function(p,i){ return '<option value="'+i+'">'+escapeHtml(p.label)+'（'+p.price.toLocaleString("ja-JP")+'円）</option>'; }).join("") +
+      '<option value="custom">直接入力</option>';
+
+    el.itemsBody.innerHTML = items.map(function(row, i){
+      var amount = (Number(row.qty)||0) * (Number(row.price)||0);
+      return (
+        '<tr data-i="'+i+'">'+
+          '<td><input type="text" class="cell-name" value="'+escapeAttr(row.name)+'" placeholder="例）4月分"></td>'+
+          '<td><input type="number" class="cell-qty" value="'+escapeAttr(row.qty)+'" min="0" step="0.5" inputmode="decimal"></td>'+
+          '<td><input type="text" class="cell-unit" value="'+escapeAttr(row.unit)+'"></td>'+
+          '<td>'+
+            '<select class="cell-preset">'+presetOptions+'</select>'+
+            '<input type="number" class="cell-price" value="'+escapeAttr(row.price)+'" min="0" step="1">'+
+          '</td>'+
+          '<td class="cell-amount">'+yen(amount)+'</td>'+
+          '<td><input type="text" class="cell-note" value="'+escapeAttr(row.note)+'" placeholder="任意"></td>'+
+          '<td><button type="button" class="btn-del" title="行を削除">×</button></td>'+
+        '</tr>'
+      );
+    }).join("");
+    recalcTotals();
+  }
+
+  function escapeHtml(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function escapeAttr(s){ return escapeHtml(s); }
+
+  function recalcTotals(){
+    var subtotal = items.reduce(function(sum, row){
+      return sum + (Number(row.qty)||0) * (Number(row.price)||0);
+    }, 0);
+    var rate = Number(settings.taxRate)||0;
+    var tax = Math.round(subtotal * rate / 100);
+    var total = subtotal + tax;
+    el.sumSubtotal.textContent = yen(subtotal);
+    el.sumTax.textContent = yen(tax);
+    el.sumTotal.textContent = yen(total);
+    el.taxRateLabel.textContent = rate;
+    return {subtotal:subtotal, tax:tax, total:total, rate:rate};
+  }
+
+  // event delegation for items table
+  el.itemsBody.addEventListener("input", function(ev){
+    var tr = ev.target.closest("tr");
+    if(!tr) return;
+    var i = Number(tr.getAttribute("data-i"));
+    var row = items[i];
+    if(!row) return;
+    if(ev.target.classList.contains("cell-name")) row.name = ev.target.value;
+    else if(ev.target.classList.contains("cell-qty")) row.qty = ev.target.value;
+    else if(ev.target.classList.contains("cell-unit")) row.unit = ev.target.value;
+    else if(ev.target.classList.contains("cell-price")) row.price = ev.target.value;
+    else if(ev.target.classList.contains("cell-note")) row.note = ev.target.value;
+
+    if(ev.target.classList.contains("cell-qty") || ev.target.classList.contains("cell-price")){
+      var amount = (Number(row.qty)||0) * (Number(row.price)||0);
+      tr.querySelector(".cell-amount").textContent = yen(amount);
+      recalcTotals();
+    }
+    saveDraft();
+  });
+
+  el.itemsBody.addEventListener("change", function(ev){
+    var tr = ev.target.closest("tr");
+    if(!tr) return;
+    var i = Number(tr.getAttribute("data-i"));
+    var row = items[i];
+    if(!row) return;
+    if(ev.target.classList.contains("cell-preset")){
+      var v = ev.target.value;
+      if(v !== "" && v !== "custom"){
+        var preset = settings.presets[Number(v)];
+        if(preset){
+          row.price = preset.price;
+          if(!row.name) row.name = preset.label;
+          renderRows();
+          saveDraft();
+        }
+      }
+    }
+  });
+
+  el.itemsBody.addEventListener("click", function(ev){
+    if(ev.target.classList.contains("btn-del")){
+      var tr = ev.target.closest("tr");
+      var i = Number(tr.getAttribute("data-i"));
+      items.splice(i,1);
+      renderRows();
+      saveDraft();
+    }
+  });
+
+  el.btnAddRow.addEventListener("click", function(){
+    items.push(newRow());
+    renderRows();
+    saveDraft();
+  });
+
+  // ---------------- draft persistence ----------------
+  function saveDraft(){
+    try{
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        clientName: el.clientName.value,
+        clientHonorific: el.clientHonorific.value,
+        invoiceDate: el.invoiceDate.value,
+        invoiceNo: el.invoiceNo.value,
+        footerNote: el.footerNote.value,
+        items: items
+      }));
+    }catch(e){}
+  }
+  function loadDraft(){
+    try{
+      var raw = localStorage.getItem(DRAFT_KEY);
+      if(!raw) return null;
+      return JSON.parse(raw);
+    }catch(e){ return null; }
+  }
+
+  ["clientName","clientHonorific","invoiceDate","invoiceNo","footerNote"].forEach(function(id){
+    el[id].addEventListener("input", saveDraft);
+    el[id].addEventListener("change", saveDraft);
+  });
+
+  function initForm(){
+    var draft = loadDraft();
+    if(draft){
+      el.clientName.value = draft.clientName || "";
+      el.clientHonorific.value = draft.clientHonorific || "御中";
+      el.invoiceDate.value = draft.invoiceDate || todayISO();
+      el.invoiceNo.value = draft.invoiceNo || "";
+      el.footerNote.value = (typeof draft.footerNote === "string") ? draft.footerNote : settings.defaultNote;
+      items = Array.isArray(draft.items) && draft.items.length ? draft.items : [defaultFirstRow()];
+      rowSeq = items.reduce(function(m,r){ return Math.max(m, r.id||0); }, 0);
+    } else {
+      el.invoiceDate.value = todayISO();
+      el.clientHonorific.value = "御中";
+      el.footerNote.value = settings.defaultNote;
+      items = [defaultFirstRow()];
+      try{
+        var lastNo = localStorage.getItem(LAST_INVOICE_NO_KEY);
+        if(lastNo) el.invoiceNo.value = lastNo;
+      }catch(e){}
+    }
+    renderRows();
+  }
+
+  // ---------------- canvas-based invoice rendering (= exact PDF content) ----------------
+  var NAVY = "#1f3a52", GOLD = "#b8863f", TEXT_C = "#233140", MUTED_C = "#6b7680",
+      BORDER_C = "#d6dde2", STRIPE_C = "#f8fafb", BANNER_BG = "#f2f6f8", CO_TEXT = "#33414f";
+  var FONT_FAMILY = '"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP","Meiryo",sans-serif';
+  var PX_PER_MM = 10; // ~254dpi equivalent, sharp enough to zoom in on a phone
+
+  var FONT_SCALE = 1; // set at the start of each render from settings.fontScale; scales text AND its line-height/row spacing together so the layout/pagination stays consistent
+  function S(mmValue){ return mmValue * FONT_SCALE; }
+  function mmFont(pt, weight){
+    var s = (pt * FONT_SCALE * 25.4 / 72).toFixed(3);
+    return (weight ? weight + " " : "") + s + "px " + FONT_FAMILY;
+  }
+  function wrapText(ctx, text, maxWidth){
+    text = text || "";
+    var lines = [], line = "";
+    for(var i=0;i<text.length;i++){
+      var test = line + text[i];
+      if(line.length > 0 && ctx.measureText(test).width > maxWidth){
+        lines.push(line);
+        line = text[i];
+      } else {
+        line = test;
+      }
+    }
+    lines.push(line);
+    return lines;
+  }
+  // shrinks font size until text fits maxWidth (protects layout from unusually long names)
+  function fitFontSize(ctx, text, maxWidth, startPt, minPt, weight){
+    var pt = startPt;
+    while(pt > minPt){
+      ctx.font = mmFont(pt, weight);
+      if(ctx.measureText(text).width <= maxWidth) break;
+      pt -= 0.5;
+    }
+    ctx.font = mmFont(pt, weight);
+    return pt;
+  }
+
+  var lastPages = null; // array of canvases (1 per PDF page)
+
+  var PAGE_W = 210, PAGE_H = 297, PAGE_M = 12;
+  var PAGE_RIGHT = PAGE_W - PAGE_M, PAGE_CONTENT_W = PAGE_W - 2*PAGE_M;
+  var COL_NAME = PAGE_M, COL_QTY_END = PAGE_M + 68, COL_PRICE_END = PAGE_M + 116, COL_AMT_END = PAGE_M + 146;
+  var ROW_H = 8.0; // recomputed from FONT_SCALE at the start of each renderInvoicePages() call
+  var FOOTER_BLOCK_H = 68; // reserved height for summary + bank/note + gaps, anchored to page bottom (also rescaled)
+
+  function newPageCanvas(){
+    var canvas = document.createElement("canvas");
+    canvas.width = Math.round(PAGE_W * PX_PER_MM);
+    canvas.height = Math.round(PAGE_H * PX_PER_MM);
+    var ctx = canvas.getContext("2d");
+    ctx.scale(PX_PER_MM, PX_PER_MM);
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+    return {canvas: canvas, ctx: ctx};
+  }
+
+  // draws title / company block / client name / meta / total banner + table header; returns y where item rows should start
+  function drawMainHeader(ctx, data){
+    var c = data.c, right = PAGE_RIGHT, contentW = PAGE_CONTENT_W, M = PAGE_M;
+    var y = M;
+
+    ctx.fillStyle = NAVY;
+    ctx.font = mmFont(20, "700");
+    ctx.textAlign = "left";
+    ctx.fillText("請 求 書", M, y + S(7.5));
+    ctx.fillStyle = MUTED_C;
+    ctx.font = mmFont(7.5);
+    ctx.fillText("下記の通りご請求申し上げます。", M, y + S(12.3));
+    var leftBottom = y + S(12.3);
+
+    ctx.textAlign = "right";
+    var ry = y + S(3.2);
+    ctx.fillStyle = NAVY;
+    if(c.name){
+      fitFontSize(ctx, c.name, 92, 10.5, 6.5, "700");
+      ctx.fillText(c.name, right, ry);
+      ry += S(4.3);
+    }
+    ctx.fillStyle = CO_TEXT;
+    ctx.font = mmFont(7.3);
+    if(c.zip){ ctx.fillText("〒"+c.zip, right, ry); ry += S(3.4); }
+    if(c.address){
+      wrapText(ctx, c.address, 82).forEach(function(ln){ ctx.fillText(ln, right, ry); ry += S(3.4); });
+    }
+    var telLine = "";
+    if(c.tel) telLine += "TEL："+c.tel;
+    if(c.mobile) telLine += (telLine ? "　" : "") + "携帯："+c.mobile;
+    if(telLine){ ctx.fillText(telLine, right, ry); ry += S(3.4); }
+    if(c.fax){ ctx.fillText("FAX："+c.fax, right, ry); ry += S(3.4); }
+    if(c.owner){ ctx.fillText(c.owner, right, ry); ry += S(3.4); }
+    var rightBottom = ry;
+
+    y = Math.max(leftBottom, rightBottom) + S(2.5);
+
+    ctx.strokeStyle = NAVY;
+    ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(right, y); ctx.stroke();
+    y += S(9.5); // enough clearance so the date line never touches the rule above
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = TEXT_C;
+    var clientText = data.clientDisplay || "　";
+    fitFontSize(ctx, clientText, 122, 13, 8, "700");
+    ctx.fillText(clientText, M, y);
+    var clientWidth = Math.max(ctx.measureText(clientText).width, 45);
+    ctx.strokeStyle = TEXT_C; ctx.lineWidth = 0.35;
+    ctx.beginPath(); ctx.moveTo(M, y + S(1.5)); ctx.lineTo(M + clientWidth, y + S(1.5)); ctx.stroke();
+
+    ctx.textAlign = "right";
+    ctx.fillStyle = CO_TEXT;
+    ctx.font = mmFont(7.8);
+    ctx.fillText("請求日：" + data.dateJP, right, y - S(4.2));
+    if(data.invoiceNo) ctx.fillText("請求書番号：" + data.invoiceNo, right, y);
+
+    y += S(7);
+
+    var bannerH = S(12.5);
+    ctx.fillStyle = BANNER_BG;
+    ctx.fillRect(M, y, contentW, bannerH);
+    ctx.fillStyle = GOLD;
+    ctx.fillRect(M, y, 1.3, bannerH);
+    ctx.fillStyle = NAVY;
+    ctx.font = mmFont(9.5, "700");
+    ctx.textAlign = "left";
+    ctx.fillText("ご請求金額（税込）", M + 5.5, y + bannerH/2 + S(1.9));
+    ctx.font = mmFont(16, "700");
+    ctx.textAlign = "right";
+    ctx.fillText(data.totals.total.toLocaleString("ja-JP") + "円", right - 4, y + bannerH/2 + S(2.4));
+    y += bannerH + S(5);
+
+    return drawTableHeaderRow(ctx, y);
+  }
+
+  // small header shown at the top of continuation pages (page 2, 3, ...)
+  function drawContinuationHeader(ctx, clientDisplay){
+    var M = PAGE_M, right = PAGE_RIGHT;
+    ctx.textAlign = "left";
+    ctx.fillStyle = NAVY;
+    ctx.font = mmFont(11, "700");
+    ctx.fillText("請求書（続き）　" + (clientDisplay||""), M, M + S(6));
+    ctx.strokeStyle = BORDER_C; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(M, M+S(9)); ctx.lineTo(right, M+S(9)); ctx.stroke();
+    return drawTableHeaderRow(ctx, M + S(13));
+  }
+
+  function drawTableHeaderRow(ctx, y){
+    var M = PAGE_M, contentW = PAGE_CONTENT_W;
+    var headerH = S(6.4);
+    ctx.fillStyle = NAVY;
+    ctx.fillRect(M, y, contentW, headerH);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = mmFont(7.8, "600");
+    var hb = y + headerH - S(2.0);
+    ctx.textAlign = "left"; ctx.fillText("名称", COL_NAME + 2, hb);
+    ctx.textAlign = "right"; ctx.fillText("数量", COL_QTY_END - 2, hb);
+    ctx.textAlign = "left"; ctx.fillText("単位", COL_QTY_END + 1, hb);
+    ctx.textAlign = "right"; ctx.fillText("単価", COL_PRICE_END - 2, hb);
+    ctx.textAlign = "right"; ctx.fillText("金額", COL_AMT_END - 2, hb);
+    ctx.textAlign = "left"; ctx.fillText("備考", COL_AMT_END + 1, hb);
+    return y + headerH;
+  }
+
+  // draws a slice of item rows starting at y; globalStartIndex keeps zebra striping consistent across pages
+  function drawRows(ctx, rowsSlice, y, globalStartIndex){
+    var M = PAGE_M, right = PAGE_RIGHT, contentW = PAGE_CONTENT_W;
+    var tableTop = y;
+    rowsSlice.forEach(function(row, i){
+      var idx = globalStartIndex + i;
+      if(idx % 2 === 1){ ctx.fillStyle = STRIPE_C; ctx.fillRect(M, y, contentW, ROW_H); }
+      var amount = (Number(row.qty)||0) * (Number(row.price)||0);
+      var baseline = y + ROW_H/2 + ROW_H*0.28;
+      ctx.font = mmFont(7.6, "400");
+      ctx.fillStyle = TEXT_C;
+      ctx.textAlign = "left"; ctx.fillText(String(row.name||""), COL_NAME + 2, baseline);
+      ctx.textAlign = "right"; ctx.fillText(String(row.qty!=="" && row.qty!=null ? row.qty : ""), COL_QTY_END - 2, baseline);
+      ctx.textAlign = "left"; ctx.fillText(String(row.unit||""), COL_QTY_END + 1, baseline);
+      ctx.textAlign = "right"; ctx.fillText(row.price!=="" && row.price!=null ? Number(row.price).toLocaleString("ja-JP")+"円" : "", COL_PRICE_END - 2, baseline);
+      ctx.textAlign = "right"; ctx.fillText(amount ? amount.toLocaleString("ja-JP")+"円" : "", COL_AMT_END - 2, baseline);
+      ctx.textAlign = "left"; ctx.fillText(String(row.note||""), COL_AMT_END + 2, baseline);
+      ctx.strokeStyle = BORDER_C; ctx.lineWidth = 0.3;
+      ctx.beginPath(); ctx.moveTo(M, y+ROW_H); ctx.lineTo(right, y+ROW_H); ctx.stroke();
+      y += ROW_H;
+    });
+    ctx.strokeStyle = NAVY; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(M, tableTop); ctx.lineTo(M, y); ctx.moveTo(right, tableTop); ctx.lineTo(right, y); ctx.stroke();
+    return y;
+  }
+
+  // summary + bank/note footer, anchored so its bottom always lands at the same place near the page bottom
+  function drawFooterBlock(ctx, footerTop, totals, b, note){
+    var M = PAGE_M, right = PAGE_RIGHT, contentW = PAGE_CONTENT_W;
+    var y = footerTop;
+    var boxW = S(62), boxX = right - boxW;
+    function summaryRow(label, value, bold, big){
+      ctx.textAlign = "left";
+      ctx.font = mmFont(big?11:8.3, bold?"700":"400");
+      ctx.fillStyle = bold ? NAVY : TEXT_C;
+      ctx.fillText(label, boxX, y + S(big?4.6:3.6));
+      ctx.textAlign = "right";
+      ctx.fillText(value, right, y + S(big?4.6:3.6));
+      y += S(big ? 7.5 : 5.4);
+    }
+    summaryRow("小計", totals.subtotal.toLocaleString("ja-JP")+"円", false, false);
+    summaryRow("消費税（"+totals.rate+"%）", totals.tax.toLocaleString("ja-JP")+"円", false, false);
+    ctx.strokeStyle = NAVY; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(boxX, y+0.8); ctx.lineTo(right, y+0.8); ctx.stroke();
+    y += S(2.2);
+    summaryRow("合計", totals.total.toLocaleString("ja-JP")+"円", true, true);
+
+    y += S(4.5);
+
+    var footerBoxTop = y;
+    var bankW = contentW * 0.52, gap = 6, noteX = M + bankW + gap, noteW = contentW - bankW - gap;
+    var bankLines = [
+      ["金融機関", (b.bankName||"") + (b.branch ? "　"+b.branch : "") + (b.branchNo ? "（店番"+b.branchNo+"）" : "")],
+      ["口座番号", (b.accountType||"") + "　" + (b.accountNo||"")],
+      ["口座名義", b.holder||""]
+    ];
+    var bankBoxH = S(6) + bankLines.length*S(4.6) + S(3);
+    ctx.strokeStyle = BORDER_C; ctx.lineWidth = 0.5;
+    ctx.strokeRect(M, footerBoxTop, bankW, bankBoxH);
+    ctx.fillStyle = NAVY; ctx.font = mmFont(8.3,"700"); ctx.textAlign="left";
+    ctx.fillText("お振込先", M + 4, footerBoxTop + S(5.2));
+    ctx.font = mmFont(7.3);
+    var by = footerBoxTop + S(9.4);
+    bankLines.forEach(function(pair){
+      ctx.fillStyle = MUTED_C;
+      ctx.fillText(pair[0], M + 4, by);
+      ctx.fillStyle = CO_TEXT;
+      ctx.fillText(pair[1], M + S(20), by);
+      by += S(4.6);
+    });
+
+    ctx.fillStyle = NAVY; ctx.font = mmFont(8.3,"700"); ctx.textAlign="left";
+    ctx.fillText("備考", noteX, footerBoxTop + S(5.2));
+    ctx.font = mmFont(7.3);
+    ctx.fillStyle = CO_TEXT;
+    var noteLines = wrapText(ctx, note, noteW).slice(0, 6);
+    var ny = footerBoxTop + S(9.4);
+    noteLines.forEach(function(ln){ ctx.fillText(ln, noteX, ny); ny += S(3.8); });
+  }
+
+  function drawBottomLine(ctx, text){
+    ctx.fillStyle = "#9aa4ac";
+    ctx.font = mmFont(6.3);
+    ctx.textAlign = "right";
+    ctx.fillText(text, PAGE_RIGHT, PAGE_H - 6);
+  }
+
+  function renderInvoicePages(){
+    FONT_SCALE = Math.min(1.4, Math.max(0.9, Number(settings.fontScale) || 1.2));
+    ROW_H = S(8.0);
+    FOOTER_BLOCK_H = S(68);
+
+    var totals = recalcTotals();
+    var honorific = el.clientHonorific.value;
+    var clientDisplay = (el.clientName.value || "").trim() + (honorific ? "　"+honorific : "");
+    var dateJP = isoToJP(el.invoiceDate.value || todayISO());
+    var invoiceNo = (el.invoiceNo.value || "").trim();
+    var note = el.footerNote.value || "";
+    var c = settings.company, b = settings.bank;
+    var headerData = {clientDisplay:clientDisplay, dateJP:dateJP, invoiceNo:invoiceNo, totals:totals, c:c};
+
+    var pages = []; // {ctx, isLast}
+    var p1 = newPageCanvas();
+    var tableStartY = drawMainHeader(p1.ctx, headerData);
+    var rowsFitP1 = Math.max(1, Math.floor((PAGE_H - PAGE_M - FOOTER_BLOCK_H - tableStartY) / ROW_H));
+
+    if(items.length <= rowsFitP1){
+      var yEnd = drawRows(p1.ctx, items, tableStartY, 0);
+      var footerTop = Math.max(PAGE_H - PAGE_M - FOOTER_BLOCK_H, yEnd + 5);
+      drawFooterBlock(p1.ctx, footerTop, totals, b, note);
+      pages.push(p1.ctx);
+      var canvases = [p1.canvas];
+    } else {
+      var firstSlice = items.slice(0, rowsFitP1);
+      drawRows(p1.ctx, firstSlice, tableStartY, 0);
+      var pageCtxList = [p1.ctx];
+      var canvasList = [p1.canvas];
+      var remaining = items.slice(rowsFitP1);
+      var globalIndexOffset = rowsFitP1;
+
+      while(remaining.length > 0){
+        var pg = newPageCanvas();
+        var contStartY = drawContinuationHeader(pg.ctx, clientDisplay);
+        var rowsFitCont = Math.max(1, Math.floor((PAGE_H - PAGE_M - FOOTER_BLOCK_H - contStartY) / ROW_H));
+        var slice = remaining.slice(0, rowsFitCont);
+        var yEndC = drawRows(pg.ctx, slice, contStartY, globalIndexOffset);
+        globalIndexOffset += slice.length;
+        remaining = remaining.slice(rowsFitCont);
+        pageCtxList.push(pg.ctx);
+        canvasList.push(pg.canvas);
+        if(remaining.length === 0){
+          var footerTop2 = Math.max(PAGE_H - PAGE_M - FOOTER_BLOCK_H, yEndC + 5);
+          drawFooterBlock(pg.ctx, footerTop2, totals, b, note);
+        }
+      }
+      pages = pageCtxList;
+      canvases = canvasList;
+    }
+
+    var totalPages = pages.length;
+    pages.forEach(function(ctx, i){
+      if(totalPages > 1 && i < totalPages - 1){
+        drawBottomLine(ctx, "次ページへ続く　（" + (i+1) + "/" + totalPages + "）");
+      } else {
+        var suffix = totalPages > 1 ? "　（" + (i+1) + "/" + totalPages + "）" : "";
+        drawBottomLine(ctx, (c.name||"") + "　発行日：" + dateJP + suffix);
+      }
+    });
+
+    return canvases;
+  }
+
+  function buildFilename(){
+    var client = (el.clientName.value || "請求書").trim().replace(/[\\/:*?"<>|]/g, "");
+    var dateForName = (el.invoiceDate.value || todayISO()).replace(/-/g, "");
+    return "請求書_" + client + "_" + dateForName + ".pdf";
+  }
+
+  // ---------------- minimal multi-page PDF writer (no external library) ----------------
+  function canvasesToPDFBlob(canvases){
+    var W_PT = (210/25.4*72), H_PT = (297/25.4*72);
+
+    function s2b(str){
+      var arr = new Uint8Array(str.length);
+      for(var j=0;j<str.length;j++) arr[j] = str.charCodeAt(j) & 0xFF;
+      return arr;
+    }
+
+    var chunks = [], offset = 0, xref = {};
+    function push(data){
+      var bytes = (typeof data === "string") ? s2b(data) : data;
+      chunks.push(bytes);
+      offset += bytes.length;
+    }
+    function pushObj(num, str){ xref[num] = offset; push(str); }
+
+    var N = canvases.length;
+    var totalObjs = 2 + N*3; // 1=Catalog, 2=Pages, then 3 objs per page (page, content, image)
+
+    push("%PDF-1.4\n");
+    pushObj(1, "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+
+    var kidsRefs = [];
+    for(var i=0;i<N;i++) kidsRefs.push((3+i*3) + " 0 R");
+    pushObj(2, "2 0 obj\n<< /Type /Pages /Kids [" + kidsRefs.join(" ") + "] /Count " + N + " >>\nendobj\n");
+
+    for(var p=0;p<N;p++){
+      var pageNum = 3+p*3, contentNum = 4+p*3, imageNum = 5+p*3;
+      pushObj(pageNum, pageNum + " 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + W_PT.toFixed(2) + " " + H_PT.toFixed(2) + "] /Resources << /XObject << /Im0 " + imageNum + " 0 R >> >> /Contents " + contentNum + " 0 R >>\nendobj\n");
+
+      var content = "q\n" + W_PT.toFixed(2) + " 0 0 " + H_PT.toFixed(2) + " 0 0 cm\n/Im0 Do\nQ";
+      pushObj(contentNum, contentNum + " 0 obj\n<< /Length " + content.length + " >>\nstream\n" + content + "\nendstream\nendobj\n");
+
+      var dataURL = canvases[p].toDataURL("image/jpeg", 0.95);
+      var base64 = dataURL.split(",")[1];
+      var binary = atob(base64);
+      var jpegBytes = new Uint8Array(binary.length);
+      for(var k=0;k<binary.length;k++) jpegBytes[k] = binary.charCodeAt(k) & 0xFF;
+
+      xref[imageNum] = offset;
+      push(imageNum + " 0 obj\n<< /Type /XObject /Subtype /Image /Width " + canvases[p].width + " /Height " + canvases[p].height + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpegBytes.length + " >>\nstream\n");
+      push(jpegBytes);
+      push("\nendstream\nendobj\n");
+    }
+
+    var xrefStart = offset;
+    var xrefStr = "xref\n0 " + (totalObjs+1) + "\n0000000000 65535 f \n";
+    for(var n=1;n<=totalObjs;n++){ xrefStr += (String(xref[n]).padStart(10,"0")) + " 00000 n \n"; }
+    push(xrefStr);
+    push("trailer\n<< /Size " + (totalObjs+1) + " /Root 1 0 R >>\nstartxref\n" + xrefStart + "\n%%EOF");
+
+    return new Blob(chunks, {type:"application/pdf"});
+  }
+
+  // ---------------- invoice-number auto increment (after a successful save) ----------------
+  var LAST_INVOICE_NO_KEY = "invoiceApp.lastInvoiceNo.v1";
+  function incrementInvoiceNo(str){
+    str = str || "";
+    if(!str) return "";
+    var match = str.match(/(\d+)(?!.*\d)/); // last run of digits in the string
+    if(!match) return str; // no digits found — nothing sensible to increment
+    var numStr = match[0];
+    var incremented = String(Number(numStr) + 1);
+    if(incremented.length < numStr.length) incremented = incremented.padStart(numStr.length, "0");
+    return str.slice(0, match.index) + incremented + str.slice(match.index + numStr.length);
+  }
+  function advanceInvoiceNoAfterSave(){
+    var current = (el.invoiceNo.value || "").trim();
+    if(!current) return; // user isn't using invoice numbers — leave blank
+    var next = incrementInvoiceNo(current);
+    try{ localStorage.setItem(LAST_INVOICE_NO_KEY, next); }catch(e){}
+    el.invoiceNo.value = next;
+    saveDraft();
+  }
+
+  // Share sheets (navigator.share) are convenient on phones, but on Windows/Mac they open
+  // an OS "share with a person/app" dialog that has no obvious "save to folder" option.
+  // On desktop we skip straight to a normal browser download instead.
+  var IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.userAgentData && navigator.userAgentData.mobile === true);
+
+  async function exportPDF(){
+    el.pdfStatus.textContent = "PDFを作成中…";
+    var canvases = lastPages || renderInvoicePages();
+    var blob = canvasesToPDFBlob(canvases);
+    var filename = buildFilename();
+
+    var file = null;
+    try{ file = new File([blob], filename, {type:"application/pdf"}); }catch(e){}
+
+    if(IS_MOBILE && file && navigator.canShare && navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file], title:"請求書"});
+        el.pdfStatus.textContent = "";
+        advanceInvoiceNoAfterSave();
+        return;
+      }catch(e){
+        // user cancelled the share sheet, or share failed — fall back to direct download
+      }
+    }
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 30000);
+    el.pdfStatus.textContent = IS_MOBILE
+      ? "PDFをダウンロードしました。「ファイル」アプリや通知からご確認ください。"
+      : "PDFをダウンロードしました。パソコンの「ダウンロード」フォルダをご確認ください。";
+    advanceInvoiceNoAfterSave();
+  }
+
+  function validateBeforePreview(){
+    if(!(el.clientName.value||"").trim()){
+      el.formWarn.textContent = "請求先名を入力してください。";
+      el.clientName.focus();
+      return false;
+    }
+    var hasValidRow = items.some(function(r){ return (Number(r.qty)||0) > 0 && (Number(r.price)||0) > 0; });
+    if(!hasValidRow){
+      el.formWarn.textContent = "数量・単価が入力された明細行を1つ以上入力してください。";
+      return false;
+    }
+    el.formWarn.textContent = "";
+    return true;
+  }
+
+  function renderPreviewImages(canvases){
+    el.invoicePreviewPages.innerHTML = "";
+    canvases.forEach(function(canvas, i){
+      var wrap = document.createElement("div");
+      wrap.className = "invoice-img-wrap";
+      if(canvases.length > 1){
+        var label = document.createElement("div");
+        label.className = "page-label";
+        label.textContent = (i+1) + " / " + canvases.length + " ページ目";
+        wrap.appendChild(label);
+      }
+      var img = document.createElement("img");
+      img.alt = "請求書プレビュー " + (i+1);
+      img.src = canvas.toDataURL("image/jpeg", 0.95);
+      wrap.appendChild(img);
+      el.invoicePreviewPages.appendChild(wrap);
+    });
+  }
+
+  el.btnPreview.addEventListener("click", function(){
+    if(!validateBeforePreview()) return;
+    lastPages = renderInvoicePages();
+    renderPreviewImages(lastPages);
+    el.pdfStatus.textContent = "";
+    el.formView.classList.add("hidden");
+    el.printView.classList.remove("hidden");
+    window.scrollTo(0,0);
+  });
+
+  el.btnBack.addEventListener("click", function(){
+    el.printView.classList.add("hidden");
+    el.formView.classList.remove("hidden");
+  });
+
+  el.btnExportPdf.addEventListener("click", exportPDF);
+
+  // ---------------- settings modal ----------------
+  function openSettings(){
+    el.setCoName.value = settings.company.name;
+    el.setCoOwner.value = settings.company.owner;
+    el.setCoZip.value = settings.company.zip;
+    el.setCoAddress.value = settings.company.address;
+    el.setCoTel.value = settings.company.tel;
+    el.setCoMobile.value = settings.company.mobile;
+    el.setCoFax.value = settings.company.fax;
+
+    el.setBankName.value = settings.bank.bankName;
+    el.setBankBranch.value = settings.bank.branch;
+    el.setBankBranchNo.value = settings.bank.branchNo;
+    el.setBankType.value = settings.bank.accountType;
+    el.setBankNo.value = settings.bank.accountNo;
+    el.setBankHolder.value = settings.bank.holder;
+
+    el.setTaxRate.value = settings.taxRate;
+    el.setDefaultNote.value = settings.defaultNote;
+    el.setFontScale.value = String(settings.fontScale || 1.2);
+
+    renderPresetEditor();
+    el.settingsModal.classList.remove("hidden");
+  }
+
+  function renderPresetEditor(){
+    el.presetList.innerHTML = settings.presets.map(function(p, i){
+      return (
+        '<div class="preset-row" data-i="'+i+'">'+
+          '<input type="text" class="preset-label" value="'+escapeAttr(p.label)+'" placeholder="例）夜間手当">'+
+          '<input type="number" class="preset-price" value="'+escapeAttr(p.price)+'" placeholder="単価">'+
+          '<button type="button" class="btn-del preset-del">×</button>'+
+        '</div>'
+      );
+    }).join("");
+  }
+
+  el.presetList.addEventListener("input", function(ev){
+    var row = ev.target.closest(".preset-row");
+    if(!row) return;
+    var i = Number(row.getAttribute("data-i"));
+    if(ev.target.classList.contains("preset-label")) settings.presets[i].label = ev.target.value;
+    if(ev.target.classList.contains("preset-price")) settings.presets[i].price = Number(ev.target.value)||0;
+  });
+  el.presetList.addEventListener("click", function(ev){
+    if(ev.target.classList.contains("preset-del")){
+      var row = ev.target.closest(".preset-row");
+      var i = Number(row.getAttribute("data-i"));
+      settings.presets.splice(i,1);
+      renderPresetEditor();
+    }
+  });
+  el.btnAddPreset.addEventListener("click", function(){
+    settings.presets.push({label:"", price:0});
+    renderPresetEditor();
+  });
+
+  el.btnSettings.addEventListener("click", openSettings);
+  el.btnSettingsCancel.addEventListener("click", function(){
+    settings = loadSettings(); // discard in-memory edits
+    el.settingsModal.classList.add("hidden");
+  });
+
+  // フォームに現在入力されている内容を settings オブジェクトへ反映する。
+  // 「保存する」と「設定をJSONで書き出す」の両方から呼び、書き出しが常に
+  // 画面上の最新の入力内容を反映するようにする(保存ボタンを押す前でも最新化される)。
+  function syncFormToSettings(){
+    settings.company = {
+      name: el.setCoName.value, owner: el.setCoOwner.value, zip: el.setCoZip.value,
+      address: el.setCoAddress.value, tel: el.setCoTel.value, mobile: el.setCoMobile.value, fax: el.setCoFax.value
+    };
+    settings.bank = {
+      bankName: el.setBankName.value, branch: el.setBankBranch.value, branchNo: el.setBankBranchNo.value,
+      accountType: el.setBankType.value, accountNo: el.setBankNo.value, holder: el.setBankHolder.value
+    };
+    settings.taxRate = Number(el.setTaxRate.value)||0;
+    settings.defaultNote = el.setDefaultNote.value;
+    settings.fontScale = Number(el.setFontScale.value) || 1.2;
+    settings.presets = settings.presets.filter(function(p){ return (p.label||"").trim() !== ""; });
+  }
+
+  el.btnSettingsSave.addEventListener("click", function(){
+    syncFormToSettings();
+    saveSettings(settings);
+    el.settingsModal.classList.add("hidden");
+    renderRows(); // refresh preset dropdown + tax label
+  });
+
+  el.btnExportSettings.addEventListener("click", function(){
+    syncFormToSettings();
+    var blob = new Blob([JSON.stringify(settings, null, 2)], {type:"application/json"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "invoice-settings.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+
+  el.btnImportSettingsTrigger.addEventListener("click", function(){
+    el.importSettingsFile.click();
+  });
+  el.importSettingsFile.addEventListener("change", function(ev){
+    var file = ev.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var parsed = JSON.parse(reader.result);
+        settings.company = Object.assign(settings.company, parsed.company||{});
+        settings.bank = Object.assign(settings.bank, parsed.bank||{});
+        if(Array.isArray(parsed.presets) && parsed.presets.length) settings.presets = parsed.presets;
+        if(typeof parsed.taxRate === "number") settings.taxRate = parsed.taxRate;
+        if(typeof parsed.defaultNote === "string") settings.defaultNote = parsed.defaultNote;
+        if(typeof parsed.fontScale === "number") settings.fontScale = parsed.fontScale;
+        openSettings();
+      }catch(e){
+        alert("JSONの読み込みに失敗しました。ファイル内容をご確認ください。");
+      }
+    };
+    reader.readAsText(file);
+    el.importSettingsFile.value = "";
+  });
+
+  // ---------------- init ----------------
+  initForm();
+})();
+</script>
+</body>
+</html>
